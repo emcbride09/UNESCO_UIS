@@ -65,24 +65,25 @@ uis_map_data_clip$year <- as.integer(uis_map_data_clip$year)
 url <- "http://www.worldometers.info/geography/how-many-countries-in-africa/"
 
 africa <- read_html(url) %>% 
-  html_nodes("tr :nth-child(2)") %>% 
-  html_text()
+  html_nodes("table") %>%
+  .[[1]] %>%
+  html_table()
 
 
-africa_names <- as.data.frame(africa, col.names = names('country'))
+africa_names <-  africa %>% select(- `#`)
 
-africa_df <- africa_names %>% rename(country = africa) %>% 
-  filter(africa != "Country")
+africa_df <- africa_names %>% rename(country = Country,
+                                     pop = `Population(2019)`,
+                                     subregion = Subregion)
 
 
 #changedata frame
 ##df.oil <- df.oil %>%  mutate(country = recode(country, `United States` = 'USA'
 
 
-africa_df <- africa_df %>% mutate( country = recode(country, `DR Congo` = 'Democratic Republic of the Congo',
+africa_df <- africa_df %>% mutate(country = recode(country, `DR Congo` = 'Democratic Republic of the Congo',
                                                     `Côte d'Ivoire` = "Ivory Coast",
-                                                    `Congo` = 'Republic of Congo')) %>% 
-  select(country)
+                                                    `Congo` = 'Republic of Congo'))
 
 
 
@@ -91,11 +92,10 @@ africa_df <- africa_df %>% mutate( country = recode(country, `DR Congo` = 'Democ
 
 ##you can filter by multiple values but dont change to list or DF keep as character vector
 
-africa_df <- as.character(africa_df$country)
+africa_char <- as.character(africa_df$country)
 
-uis_final <- uis_map_data_clip %>% filter(region %in% africa_df)
+uis_final <- uis_map_data_clip %>% filter(region %in% africa_char)
 
-uis_final$region <- as.character(uis_final$region)
 
 
 
@@ -125,6 +125,34 @@ anim
 
 anim_save("uis_anim.gif",anim)
 
+#####line chart
+
+url <- "http://www.worldometers.info/geography/how-many-countries-in-africa/"
+
+africa <- read_html(url) %>% 
+  html_nodes("table") %>%
+  .[[1]] %>%
+  html_table()
+
+africa_names <-  africa %>% select(- `#`)
+
+africa_df <- africa_names %>% rename(country = Country,
+                                     pop = `Population(2019)`,
+                                     subregion = Subregion)
+
+#f.oil <- df.oil %>% mutate(oil_bbl_per_day = oil_bbl_per_day %>% str_replace_all(',','') %>% as.integer())
+
+africa_df_w <- africa_df %>% mutate(pop = pop %>% str_replace_all(',',"") %>% as.numeric())
+
+uis_final_line <- left_join(uis_final, africa_df_w, by = c('region' = 'country'))
+
+bar_anim <- uis_final_line %>% ggplot(aes(year, rate, size = pop, color = subregion))
+
+bar_anim + geom_point(alpha = 0.7) +
+  scale_size(range = c(2, 12)) +
+  transition_manual(year) + 
+  ease_aes('linear') +
+  shadow_trail(0.05, alpha = 0.2)
 
 
   
